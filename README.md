@@ -154,8 +154,8 @@ EOF  all  create  destroy  help  quit  show  update
 No known bugs at this time. 
 
 ## Authors
-Victor Adly - [Github](https://github.com/victor0089) / [Twitter](https://twitter.com/)  
-Maryam Amrani - [Github](https://github.com/AMARYAM) / [Twitter](https://twitter.com/)
+Victor ADLY - [Github](https://github.com/victor0089) / [Twitter](https://twitter.com/)  
+Maryam AMRANI - [Github](https://github.com/AMaaryam) / [Twitter](https://twitter.com/a_maaryam)  / [E-mail](a.maaryam@gmail.com)
 
 Second part of Airbnb: VICTOR
 ## License
