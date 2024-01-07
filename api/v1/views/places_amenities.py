@@ -1,68 +1,319 @@
 #!/usr/bin/python3
 """
-Flask route that returns json status response
+This is module places_amenities
 """
-from api.v1.views import app_views
-from flask import abort, jsonify, request
-from models import storage, CNC
-from os import environ
-STORAGE_TYPE = environ.get('HBNB_TYPE_STORAGE')
+from api.v1.views import (Amenity, app_views, Place, storage)
+from flask import (abort, jsonify, make_response, request)
+from os import getenv
+from sqlalchemy import inspect
 
+if getenv('HBNB_TYPE_STORAGE', 'fs') != 'db':
+    # FILE STORAGE
+    @app_views.route('/places/<place_id>/amenities', methods=['GET'],
+                     strict_slashes=False)
+    def view_amenities_in_place(place_id):
+        """Example endpoint returning a list of all amenities of a place
+        Retrieves a list of all amenties specified by place_id
+        ---
+        parameters:
+          - name: place_id
+            in: path
+            type: string
+            enum: ["279b355e-ff9a-4b85-8114-6db7ad2a4cd2", None]
+            required: true
+            default: None
+        definitions:
+          Amenity:
+            type: object
+            properties:
+              __class__:
+                type: string
+                description: The string of class object
+              created_at:
+                type: string
+                description: The date the object created
+              email:
+                type: string
+              first_name:
+                type: string
+              last_name:
+                type: string
+              id:
+                type: string
+                description: the id of the user
+              updated_at:
+                type: string
+                description: The date the object was updated
+                items:
+                  $ref: '#/definitions/Color'
+          Color:
+            type: string
+        responses:
+          200:
+            description: A list of dicts or dict, each dict is an amenity
+            schema:
+              $ref: '#/definitions/Amenity'
+            examples:
+                [{"__class__": "Amenity",
+                  "created_at": "2017-03-25T02:17:06",
+                  "id": "cf701d1a-3c19-4bac-bd99-15321f1140f2",
+                  "name": "Dog(s)",
+                  "updated_at": "2017-03-25T02:17:06"}]
+        """
+        place = storage.get("Place", place_id)
+        if place is None:
+            abort(404)
+        result = [a.to_json() for a in place.amenities]
+        return jsonify(result)
 
-@app_views.route('/places/<place_id>/amenities', methods=['GET'])
-def amenities_per_place(place_id=None):
-    """
-        reviews route to handle http method for requested reviews by place
-    """
-    place_obj = storage.get('Place', place_id)
+    @app_views.route('/places/<place_id>/amenities/<amenity_id>',
+                     methods=['DELETE'], strict_slashes=False)
+    def delete_placeamenity(place_id=None, amenity_id=None):
+        """Example endpoint deleting one placeamenity
+        Deletes a placeamenity based on the place_id and amenity_id
+        ---
+        definitions:
+          PlaceAmenity:
+            type: object
+          Color:
+            type: string
+          items:
+            $ref: '#/definitions/Color'
 
-    if request.method == 'GET':
-        if place_obj is None:
-            abort(404, 'Not found')
-        all_amenities = storage.all('Amenity')
-        if STORAGE_TYPE == 'db':
-            place_amenities = place_obj.amenities
+        responses:
+          200:
+            description: An empty dictionary
+            schema:
+              $ref: '#/definitions/City'
+            examples:
+                {}
+        """
+        place = storage.get("Place", place_id)
+        if (place is None) or (amenity_id is None):
+            abort(404)
+        if amenity_id not in place.amenities_id:
+            abort(404)
         else:
-            place_amen_ids = place_obj.amenities
-            place_amenities = []
-            for amen in place_amen_ids:
-                response.append(storage.get('Amenity', amen))
-        place_amenities = [
-            obj.to_json() for obj in place_amenities
-            ]
-        return jsonify(place_amenities)
+            place.amenities_id.remove(amenity_id)
+            place.save()
+            return jsonify({}), 200
 
+    @app_views.route('/places/<place_id>/amenities/<amenity_id>',
+                     methods=['POST'], strict_slashes=False)
+    def create_amenity_in_place(place_id=None, amenity_id=None):
+        """Example endpoint creates a link between a amenity and a place
+        Creates a link based on an amentiy and a place based on the JSON body
+        ---
+        parameters:
+          - name: place_id
+            in: path
+            type: string
+            enum: ["279b355e-ff9a-4b85-8114-6db7ad2a4cd2", None]
+            required: true
+            default: None
+        definitions:
+          Amenity:
+            type: object
+            properties:
+              __class__:
+                type: string
+                description: The string of class object
+              created_at:
+                type: string
+                description: The date the object created
+              email:
+                type: string
+              first_name:
+                type: string
+              last_name:
+                type: string
+              id:
+                type: string
+                description: the id of the user
+              updated_at:
+                type: string
+                description: The date the object was updated
+                items:
+                  $ref: '#/definitions/Color'
+          Color:
+            type: string
+        responses:
+          201:
+            description: A list of dicts or dict, each dict is an amenity
+            schema:
+              $ref: '#/definitions/Amenity'
+            examples:
+                [{"__class__": "Amenity",
+                  "created_at": "2017-03-25T02:17:06",
+                  "id": "cf701d1a-3c19-4bac-bd99-15321f1140f2",
+                  "name": "Dog(s)",
+                  "updated_at": "2017-03-25T02:17:06"}]
+        """
+        place = storage.get("Place", place_id)
+        if place is None:
+            abort(404)
+        amenity = storage.get("Amenity", amenity_id)
+        if amenity is None:
+            return "Bad amenity", 404
+        if amenity_id in place.amenities_id:
+            return jsonify(amenity.to_json()), 200
+        place.amenities_id.append(amenity_id)
+        place.save()
+        return jsonify(amenity.to_json()), 201
 
-@app_views.route('/places/<place_id>/amenities/<amenity_id>',
-                 methods=['DELETE', 'POST'])
-def amenity_to_place(place_id=None, amenity_id=None):
-    """
-        reviews route to handle http methods for given review by ID
-    """
-    place_obj = storage.get('Place', place_id)
-    amenity_obj = storage.get('Amenity', amenity_id)
-    if place_obj is None:
-        abort(404, 'Not found')
-    if amenity_obj is None:
-        abort(404, 'Not found')
+else:
+    # DB STORAGE
+    @app_views.route('/places/<place_id>/amenities', methods=['GET'],
+                     strict_slashes=False)
+    def view_amenities_in_place(place_id):
+        """Example endpoint returning a list of all amenities of a place
+        Retrieves a list of all amenties specified by place_id
+        ---
+        parameters:
+          - name: place_id
+            in: path
+            type: string
+            enum: ["279b355e-ff9a-4b85-8114-6db7ad2a4cd2", None]
+            required: true
+            default: None
+        definitions:
+          Amenity:
+            type: object
+            properties:
+              __class__:
+                type: string
+                description: The string of class object
+              created_at:
+                type: string
+                description: The date the object created
+              email:
+                type: string
+              first_name:
+                type: string
+              last_name:
+                type: string
+              id:
+                type: string
+                description: the id of the user
+              updated_at:
+                type: string
+                description: The date the object was updated
+                items:
+                  $ref: '#/definitions/Color'
+          Color:
+            type: string
+        responses:
+          200:
+            description: A list of dicts or dict, each dict is an amenity
+            schema:
+              $ref: '#/definitions/Amenity'
+            examples:
+                [{"__class__": "Amenity",
+                  "created_at": "2017-03-25T02:17:06",
+                  "id": "cf701d1a-3c19-4bac-bd99-15321f1140f2",
+                  "name": "Dog(s)",
+                  "updated_at": "2017-03-25T02:17:06"}]
+        """
+        place = storage.get("Place", place_id)
+        if place is None:
+            abort(404)
+        result = [p.to_json() for p in place.amenities]
+        return jsonify(result)
 
-    if request.method == 'DELETE':
-        if (amenity_obj not in place_obj.amenities and
-                amenity_obj.id not in place_obj.amenities):
-            abort(404, 'Not found')
-        if STORAGE_TYPE == 'db':
-            place_obj.amenities.remove(amenity_obj)
+    @app_views.route('/places/<place_id>/amenities/<amenity_id>',
+                     methods=['DELETE'], strict_slashes=False)
+    def delete_placeamenity(place_id=None, amenity_id=None):
+        """Example endpoint deleting one placeamenity
+        Deletes a placeamenity based on the place_id and amenity_id
+        ---
+        definitions:
+          PlaceAmenity:
+            type: object
+          Color:
+            type: string
+          items:
+            $ref: '#/definitions/Color'
+        responses:
+          200:
+            description: An empty dictionary
+            schema:
+              $ref: '#/definitions/City'
+            examples:
+                {}
+        """
+        place = storage.get("Place", place_id)
+        if place is None:
+            abort(404)
+        amenity = storage.get("Amenity", amenity_id)
+        if amenity is not None:
+            try:
+                place.amenities.remove(amenity)
+                place.save()
+                return jsonify({}), 200
+            except ValueError:
+                abort(404)
         else:
-            place_obj.amenity_ids.pop(amenity_obj.id, None)
-        place_obj.save()
-        return jsonify({}), 200
+            abort(404)
 
-    if request.method == 'POST':
-        if (amenity_obj in place_obj.amenities or
-                amenity_obj.id in place_obj.amenities):
-            return jsonify(amenity_obj.to_json()), 200
-        if STORAGE_TYPE == 'db':
-            place_obj.amenities.append(amenity_obj)
-        else:
-            place_obj.amenities = amenity_obj
-        return jsonify(amenity_obj.to_json()), 201
+    @app_views.route('/places/<place_id>/amenities/<amenity_id>',
+                     methods=['POST'], strict_slashes=False)
+    def create_amenity_in_place(place_id=None, amenity_id=None):
+        """Example endpoint creates a link between a amenity and a place
+        Creates a link based on an amentiy and a place based on the JSON body
+        ---
+        parameters:
+          - name: place_id
+            in: path
+            type: string
+            enum: ["279b355e-ff9a-4b85-8114-6db7ad2a4cd2", None]
+            required: true
+            default: None
+        definitions:
+          Amenity:
+            type: object
+            properties:
+              __class__:
+                type: string
+                description: The string of class object
+              created_at:
+                type: string
+                description: The date the object created
+              email:
+                type: string
+              first_name:
+                type: string
+              last_name:
+                type: string
+              id:
+                type: string
+                description: the id of the user
+              updated_at:
+                type: string
+                description: The date the object was updated
+                items:
+                  $ref: '#/definitions/Color'
+          Color:
+            type: string
+        responses:
+          201:
+            description: A list of dicts or dict, each dict is an amenity
+            schema:
+              $ref: '#/definitions/Amenity'
+            examples:
+                [{"__class__": "Amenity",
+                  "created_at": "2017-03-25T02:17:06",
+                  "id": "cf701d1a-3c19-4bac-bd99-15321f1140f2",
+                  "name": "Dog(s)",
+                  "updated_at": "2017-03-25T02:17:06"}]
+        """
+        place = storage.get("Place", place_id)
+        if place is None:
+            abort(404)
+        amenity = storage.get("Amenity", amenity_id)
+        if amenity is None:
+            abort(404)
+        if amenity in place.amenities:
+            return jsonify(amenity.to_json()), 200
+        place.amenities.append(amenity)
+        place.save()
+        return jsonify(amenity.to_json()), 201

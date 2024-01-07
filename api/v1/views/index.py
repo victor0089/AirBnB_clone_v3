@@ -1,37 +1,62 @@
 #!/usr/bin/python3
 """
-Flask route that returns json status response
+Index model holds the endpoint (route)
 """
-from api.v1.views import app_views
-from flask import jsonify, request
-from models import storage
+from api.v1.views import app_views, storage
+from flask import jsonify
 
 
-@app_views.route('/status', methods=['GET'])
+@app_views.route('/status/')
 def status():
+    """Example endpoint returns status
+    returns the current status of the API
+    ---
+    definitions:
+      status:
+        type: object
+      Color:
+        type: string
+      items:
+        $ref: '#/definitions/Color'
+
+    responses:
+      200:
+        description: dictionary with 'status' as key and 'ok' as keyvalue
+        schema:
+          $ref: '#/definitions/State'
+        examples:
+            {"status": "OK"}
     """
-    function for status route that returns the status
-    """
-    if request.method == 'GET':
-        resp = {"status": "OK"}
-        return jsonify(resp)
+    return jsonify({"status": "OK"})
 
 
-@app_views.route('/stats', methods=['GET'])
+@app_views.route('/stats/')
 def stats():
+    """Example endpoint returns stats
+    returns a number of objects of each class
+    ---
+    definitions:
+      status:
+        type: object
+      Color:
+        type: string
+      items:
+        $ref: '#/definitions/Color'
+
+    responses:
+      200:
+        description: dictionary with 'status' as key and 'ok' as keyvalue
+        schema:
+          $ref: '#/definitions/State'
+        examples:
+           { "amenities": 47, "cities": 36, "places": 154, "reviews": 718,
+             "states": 27, "users": 31}
     """
-    function to return the count of all class objects
-    """
-    if request.method == 'GET':
-        response = {}
-        PLURALS = {
-            "Amenity": "amenities",
-            "City": "cities",
-            "Place": "places",
-            "Review": "reviews",
-            "State": "states",
-            "User": "users"
-        }
-        for key, value in PLURALS.items():
-            response[value] = storage.count(key)
-        return jsonify(response)
+    models_available = {"User": "users",
+                        "Amenity": "amenities", "City": "cities",
+                        "Place": "places", "Review": "reviews",
+                        "State": "states"}
+    stats = {}
+    for cls in models_available.keys():
+        stats[models_available[cls]] = storage.count(cls)
+    return jsonify(stats)
