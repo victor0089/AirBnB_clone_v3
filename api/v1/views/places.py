@@ -286,7 +286,7 @@ def create_place(city_id):
         abort(404)
     try:
         r = request.get_json()
-    except:
+    except Exception as e:
         r = None
     if r is None:
         return "Not a JSON", 400
@@ -382,7 +382,7 @@ def update_place(place_id=None):
     """
     try:
         r = request.get_json()
-    except:
+    except Exception as e:
         r = None
     if r is None:
         return "Not a JSON", 400
@@ -476,7 +476,7 @@ def list_places():
      """
     try:
         r = request.get_json()
-    except:
+    except Exception as e:
         r = None
     if r is None:
         return "Not a JSON", 400
@@ -510,8 +510,6 @@ def list_places():
                             flag = False
                             break
                     if flag:
-                                # using amenities make it instance attribute,
-                                # not just class check out to_json
                         all_places.append(e)
         else:
             all_places = all_places2
