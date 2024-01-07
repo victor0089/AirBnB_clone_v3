@@ -218,7 +218,7 @@ def create_review(place_id):
     """
     try:
         r = request.get_json()
-    except:
+    except Exception as e:
         r = None
     if r is None:
         return "Not a JSON", 400
@@ -299,7 +299,7 @@ def update_review(review_id):
         abort(404)
     try:
         r = request.get_json()
-    except:
+    except Exception as e:
         r = None
     if r is None:
         return "Not a JSON", 400
